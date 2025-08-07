@@ -1,0 +1,437 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "OAuth2 Authentication Service",
+    "description": "Multi-provider OAuth2 authentication microservice with JWT token management and session tracking",
+    "version": "1.0.0",
+    "contact": {
+      "name": "API Support"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080",
+      "description": "Development server"
+    }
+  ],
+  "paths": {
+    "/oauth2/authorize/{provider}": {
+      "get": {
+        "tags": ["Authorization"],
+        "summary": "Initiate OAuth2 authentication flow",
+        "description": "Redirects user to the OAuth provider's authorization endpoint. Supported providers: google, github, linkedin",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": ["google", "github", "linkedin"]
+            },
+            "description": "OAuth provider identifier"
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirect to provider's authorization URL"
+          },
+          "400": {
+            "description": "Invalid provider specified"
+          }
+        }
+      }
+    },
+    "/oauth2/callback/google": {
+      "get": {
+        "tags": ["OAuth Callbacks"],
+        "summary": "Google OAuth callback handler",
+        "description": "Handles Google's authorization code callback. Exchanges code for tokens and creates/updates user record.",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Authorization code from Google"
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "CSRF state parameter"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful authentication",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "Token": {
+                      "type": "string",
+                      "description": "JWT access token"
+                    },
+                    "RefreshToken": {
+                      "type": "string",
+                      "description": "JWT refresh token"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid authorization code"
+          },
+          "500": {
+            "description": "Server error during authentication"
+          }
+        }
+      }
+    },
+    "/oauth2/callback/github": {
+      "get": {
+        "tags": ["OAuth Callbacks"],
+        "summary": "GitHub OAuth callback handler",
+        "description": "Handles GitHub's authorization code callback. Exchanges code for tokens and creates/updates user record.",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Authorization code from GitHub"
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "CSRF state parameter"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful authentication",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "Token": {
+                      "type": "string",
+                      "description": "JWT access token"
+                    },
+                    "RefreshToken": {
+                      "type": "string",
+                      "description": "JWT refresh token"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid authorization code or no verified email"
+          },
+          "500": {
+            "description": "Server error during authentication"
+          }
+        }
+      }
+    },
+    "/oauth2/callback/linkedin": {
+      "get": {
+        "tags": ["OAuth Callbacks"],
+        "summary": "LinkedIn OAuth callback handler",
+        "description": "Handles LinkedIn's authorization code callback. Exchanges code for tokens and creates/updates user record.",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Authorization code from LinkedIn"
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "CSRF state parameter"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful authentication",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "Token": {
+                      "type": "string",
+                      "description": "JWT access token"
+                    },
+                    "RefreshToken": {
+                      "type": "string",
+                      "description": "JWT refresh token"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid authorization code"
+          },
+          "500": {
+            "description": "Server error during authentication"
+          }
+        }
+      }
+    },
+    "/oauth2/refresh": {
+      "post": {
+        "tags": ["Session Management"],
+        "summary": "Refresh access token",
+        "description": "Uses refresh token from cookie to issue new access token. Refresh token must be valid and stored in Redis.",
+        "requestBody": {
+          "description": "Refresh token provided via secure HTTP-only cookie"
+        },
+        "responses": {
+          "200": {
+            "description": "New tokens issued successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "Token": {
+                      "type": "string",
+                      "description": "New JWT access token (15 minutes)"
+                    },
+                    "RefreshToken": {
+                      "type": "string",
+                      "description": "New JWT refresh token (30 days)"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or expired refresh token"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/oauth2/logout": {
+      "post": {
+        "tags": ["Session Management"],
+        "summary": "Logout from current device",
+        "description": "Invalidates refresh token for current device. Access token is added to blocklist. Sets refresh token cookie to empty.",
+        "responses": {
+          "200": {
+            "description": "Logout successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "Mess": {
+                      "type": "string",
+                      "example": "Logout successfully"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid refresh token"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/oauth2/logoutall": {
+      "post": {
+        "tags": ["Session Management"],
+        "summary": "Logout from all devices",
+        "description": "Invalidates all active sessions and refresh tokens for the user across all devices.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Logout from all devices successful"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    },
+    "/oauth2/get-sessions": {
+      "get": {
+        "tags": ["Session Management"],
+        "summary": "Retrieve active sessions",
+        "description": "Returns list of all active sessions for authenticated user. Includes device info and session details.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Active sessions retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "Jti": {
+                        "type": "string",
+                        "description": "JWT ID - unique token identifier"
+                      },
+                      "UserID": {
+                        "type": "integer",
+                        "description": "User ID"
+                      },
+                      "IsActive": {
+                        "type": "boolean",
+                        "description": "Session active status"
+                      },
+                      "IssuedAT": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Token issuance time"
+                      },
+                      "DeviceInfoId": {
+                        "type": "integer",
+                        "description": "Device information reference ID"
+                      },
+                      "ExpireAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Token expiration time"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing token"
+          },
+          "500": {
+            "description": "Server error"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "username": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "name": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string",
+            "enum": ["google", "github", "linkedin"]
+          },
+          "role": {
+            "type": "string",
+            "enum": ["user", "admin"]
+          },
+          "isEmailVerified": {
+            "type": "boolean"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "token_version": {
+            "type": "integer"
+          }
+        }
+      },
+      "TokenResponse": {
+        "type": "object",
+        "properties": {
+          "Token": {
+            "type": "string",
+            "description": "JWT access token"
+          },
+          "RefreshToken": {
+            "type": "string",
+            "description": "JWT refresh token"
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Authorization",
+      "description": "OAuth2 authorization initiation"
+    },
+    {
+      "name": "OAuth Callbacks",
+      "description": "OAuth provider callbacks"
+    },
+    {
+      "name": "Session Management",
+      "description": "Token and session management"
+    }
+  ]
+}
